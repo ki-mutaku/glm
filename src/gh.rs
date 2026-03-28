@@ -3,7 +3,7 @@ use std::io::Write;
 use std::process::Command;
 use tempfile::Builder;
 
-use crate::models::repository::Repository;
+use crate::models::Repository;
 use octocrab::{models::issues::Issue, Octocrab};
 
 /// `gh auth token` コマンドを実行して GitHub トークンを取得する

@@ -367,6 +367,7 @@ dependencies = [
  "crossterm",
  "octocrab",
  "ratatui",
+ "serde",
  "tempfile",
  "tokio",
 ]

@@ -120,111 +120,103 @@ async fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> Result
                 }
                 
                 match key.code {
-                    KeyCode::Char(c) => {
-                        // Issue フォームでの文字入力
-                        if app.current_screen == app::Screen::IssueForm {
-                            if let Some(form) = &mut app.issue_form {
-                                match form.focused_field {
-                                    app::FormField::Title => {
-                                        form.title.push(c);
-                                    }
-                                    app::FormField::Body => {
-                                        form.body.push(c);
-                                    }
-                                }
-                            }
-                        } else {
-                            // 通常のキーバインド
-                            match c {
-                                'q' => return Ok(()),
-                                'r' => {
-                                    // リポジトリ選択画面に遷移
-                                    app.current_screen = app::Screen::RepositorySelector;
-                                    
-                                    // リポジトリ一覧を取得
-                                    match gh::fetch_repositories(&app.octocrab).await {
-                                        Ok(repos) => {
-                                            app.repositories = repos;
-                                            if !app.repositories.is_empty() {
-                                                app.repo_list_state.select(Some(0));
-                                            }
-                                        }
-                                        Err(e) => {
-                                            app.set_error(format!("Failed to fetch repositories: {}", e));
-                                        }
+                    // --- 変更後 ---
+                    // IssueForm 以外で有効な単一キーコマンド
+                    KeyCode::Char(c) if app.current_screen != app::Screen::IssueForm => match c {
+                        'q' => return Ok(()),
+                        'r' => {
+                            app.current_screen = app::Screen::RepositorySelector;
+                            match gh::fetch_repositories(&app.octocrab).await {
+                                Ok(repos) => {
+                                    app.repositories = repos;
+                                    if !app.repositories.is_empty() {
+                                        app.repo_list_state.select(Some(0));
                                     }
                                 }
-                                'n' => {
-                                    if app.current_screen == app::Screen::IssueList {
-                                        if app.selected_repository.is_none() {
-                                            app.set_error("Please select a repository first (press 'r').".to_string());
-                                        } else {
-                                            app.current_screen = app::Screen::IssueForm;
-                                            app.issue_form = Some(app::IssueFormState::default());
-                                        }
-                                    }
+                                Err(e) => {
+                                    app.set_error(format!("Failed to fetch repositories: {}", e));
                                 }
-                                'e' => {
-                                    // 外部エディタでの編集（Issue リスト画面のみ）
-                                    if app.current_screen == app::Screen::IssueList {
-                                        if let Some(index) = app.list_state.selected() {
-                                            let issue = app.issues[index].clone();
-
-                                            // ターミナルを一時復元
-                                            disable_raw_mode()?;
-                                            execute!(io::stdout(), LeaveAlternateScreen, DisableMouseCapture)?;
-
-                                            let new_body =
-                                                gh::edit_with_external_editor(issue.body.as_deref().unwrap_or(""))?;
-
-                                            // API を叩いて GitHub を更新
-                                            if let Some(body) = new_body {
-                                                if body != issue.body.as_deref().unwrap_or("") {
-                                                    if let Some((owner, repo)) =
-                                                        gh::parse_repo_owner(issue.repository_url.as_str())
-                                                    {
-                                                        app.octocrab
-                                                            .issues(owner, repo)
-                                                            .update(issue.number)
-                                                            .body(&body)
-                                                            .send()
-                                                            .await
-                                                            .context("GitHub の Issue 更新に失敗しました")?;
-
-                                                        app.update_issue_body(index, body);
-                                                    }
-                                                }
-                                            }
-
-                                            // TUI を再開
-                                            enable_raw_mode()?;
-                                            execute!(io::stdout(), EnterAlternateScreen, EnableMouseCapture)?;
-                                            terminal.clear()?;
-                                        }
-                                    }
-                                }
-                                _ => {}
                             }
                         }
-                    }
-                    KeyCode::Char('j') | KeyCode::Down => {
-                        match app.current_screen {
+                        'n' => {
+                            if app.current_screen == app::Screen::IssueList {
+                                if app.selected_repository.is_none() {
+                                    app.set_error(
+                                        "Please select a repository first (press 'r')."
+                                            .to_string(),
+                                    );
+                                } else {
+                                    app.current_screen = app::Screen::IssueForm;
+                                    app.issue_form = Some(app::IssueFormState::default());
+                                }
+                            }
+                        }
+                        'e' => {
+                             if app.current_screen == app::Screen::IssueList {
+                                if let Some(index) = app.list_state.selected() {
+                                    let issue = app.issues[index].clone();
+                                    disable_raw_mode()?;
+                                    execute!(io::stdout(), LeaveAlternateScreen, DisableMouseCapture)?;
+                                    let new_body = gh::edit_with_external_editor(
+                                        issue.body.as_deref().unwrap_or(""),
+                                    )?;
+                                    if let Some(body) = new_body {
+                                        if body != issue.body.as_deref().unwrap_or("") {
+                                            if let Some((owner, repo)) =
+                                                gh::parse_repo_owner(issue.repository_url.as_str())
+                                            {
+                                                app.octocrab
+                                                    .issues(owner, repo)
+                                                    .update(issue.number)
+                                                    .body(&body)
+                                                    .send()
+                                                    .await
+                                                    .context("GitHub の Issue 更新に失敗しました")?;
+                                                app.update_issue_body(index, body);
+                                            }
+                                        }
+                                    }
+                                    enable_raw_mode()?;
+                                    execute!(io::stdout(), EnterAlternateScreen, EnableMouseCapture)?;
+                                    terminal.clear()?;
+                                }
+                            }
+                        }
+                        'j' => match app.current_screen {
                             app::Screen::IssueList => app.next(),
                             app::Screen::RepositorySelector => app.next_repo(),
-                            app::Screen::IssueForm => {
-                                // Phase 2 で実装
-                            }
-                        }
-                    }
-                    KeyCode::Char('k') | KeyCode::Up => {
-                        match app.current_screen {
+                            _ => {}
+                        },
+                        'k' => match app.current_screen {
                             app::Screen::IssueList => app.previous(),
                             app::Screen::RepositorySelector => app.previous_repo(),
-                            app::Screen::IssueForm => {
-                                // フォーム編集中は無効
+                            _ => {}
+                        },
+                        _ => {}
+                    },
+
+                    // フォームへの文字入力
+                    KeyCode::Char(c) if app.current_screen == app::Screen::IssueForm => {
+                        if let Some(form) = &mut app.issue_form {
+                            match form.focused_field {
+                                app::FormField::Title => form.title.push(c),
+                                app::FormField::Body => form.body.push(c),
                             }
                         }
                     }
+
+                    // 上下キーでの移動
+                    KeyCode::Down => match app.current_screen {
+                        app::Screen::IssueList => app.next(),
+                        app::Screen::RepositorySelector => app.next_repo(),
+                        _ => {}
+                    },
+                    KeyCode::Up => match app.current_screen {
+                        app::Screen::IssueList => app.previous(),
+                        app::Screen::RepositorySelector => app.previous_repo(),
+                        _ => {}
+                    },
+                    
                     KeyCode::Tab => {
                         if app.current_screen == app::Screen::IssueForm {
                             if let Some(form) = &mut app.issue_form {
@@ -234,7 +226,7 @@ async fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> Result
                                 };
                             }
                         }
-                    }
+                    },
                     KeyCode::Backspace => {
                         if app.current_screen == app::Screen::IssueForm {
                             if let Some(form) = &mut app.issue_form {
@@ -248,7 +240,7 @@ async fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> Result
                                 }
                             }
                         }
-                    }
+                    },
                     KeyCode::Esc => {
                         match app.current_screen {
                             app::Screen::RepositorySelector => {
@@ -260,7 +252,7 @@ async fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> Result
                             }
                             _ => {}
                         }
-                    }
+                    },
                     KeyCode::Enter => {
                         match app.current_screen {
                             app::Screen::RepositorySelector => {
@@ -269,7 +261,7 @@ async fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> Result
                                     app.select_repository(repo.clone());
                                     
                                     // 選択リポジトリの Issue を取得
-                                    match gh::fetch_issues_for_repo(&app.octocrab, &repo.owner, &repo.repo).await {
+                                    match gh::fetch_issues_for_repo(&app.octocrab, &repo.owner, &repo.name).await {
                                         Ok(issues) => {
                                             app.issues = issues;
                                             if !app.issues.is_empty() {
@@ -295,7 +287,7 @@ async fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> Result
                                         // Body フィールドにフォーカスがある場合のみ送信
                                         if let Some(repo) = &app.selected_repository {
                                             let owner = repo.owner.clone();
-                                            let repo_name = repo.repo.clone();
+                                            let repo_name = repo.name.clone();
                                             let title = form.title.clone();
                                             let body = form.body.clone();
                                             
@@ -332,7 +324,7 @@ async fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> Result
                             }
                             _ => {}
                         }
-                    }
+                    },
                     _ => {}
                 }
             }

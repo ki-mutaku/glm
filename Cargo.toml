@@ -10,3 +10,4 @@ octocrab = "0.38"
 tokio = { version = "1", features = ["full"] }
 anyhow = "1"
 tempfile = "3"
+serde = { version = "1.0", features = ["derive"] }

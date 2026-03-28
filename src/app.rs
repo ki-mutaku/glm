@@ -1,7 +1,7 @@
 use octocrab::{models::issues::Issue, Octocrab};
 use ratatui::widgets::ListState;
 
-use crate::models::repository::Repository;
+use crate::models::Repository;
 
 /// 現在表示している画面を表す enum
 #[derive(Debug, Clone, PartialEq)]
