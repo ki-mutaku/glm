@@ -624,7 +624,7 @@
 
 ### UI 拡張
 
-- [ ] P2-T1 [US2] render_issue_list_original を拡張してヘッダーを追加 in `src/ui.rs`
+- [X] P2-T1 [US2] render_issue_list_original を拡張してヘッダーを追加 in `src/ui.rs`
   - **詳細**: 選択リポジトリ名をヘッダーに表示
   ```rust
   fn render_issue_list_original(f: &mut Frame, app: &mut App) {
@@ -661,7 +661,7 @@
   - **完了条件**: Issue リスト画面にヘッダーが表示され、選択リポジトリ名が正しく表示される
   - **見積**: 1時間
 
-- [ ] P2-T2 [US2] 空の Issue リスト用の Empty State を実装 in `src/ui.rs`
+- [X] P2-T2 [US2] 空の Issue リスト用の Empty State を実装 in `src/ui.rs`
   - **詳細**: リポジトリが選択されているが Issue が0件の場合のメッセージ
   ```rust
   fn render_issue_list_original(f: &mut Frame, app: &mut App) {
@@ -704,7 +704,7 @@
   - **完了条件**: Issue が0件の場合に適切なメッセージが表示される
   - **見積**: 30分
 
-- [ ] P2-T3 [US2] ヘルプバーに 'n' キーのヒントを追加 in `src/ui.rs`
+- [X] P2-T3 [US2] ヘルプバーに 'n' キーのヒントを追加 in `src/ui.rs`
   - **詳細**: ステータスバーに Issue 作成のキーバインドを追加
   ```rust
   fn render_issue_list_original(f: &mut Frame, app: &mut App) {

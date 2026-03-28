@@ -41,17 +41,31 @@ fn render_error_bar(f: &mut Frame, error_message: &str) {
 
 /// Issue リスト画面を描画（既存の ui 関数の中身）
 fn render_issue_list_original(f: &mut Frame, app: &mut App) {
-    // 画面全体を上下に分割 (メインエリア : ステータス行)
+    // 画面全体を3分割 (ヘッダー : メインエリア : ステータス行)
     let main_chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Min(0), Constraint::Length(1)].as_ref())
+        .constraints([
+            Constraint::Length(1), // ヘッダー（新規追加）
+            Constraint::Min(0),    // メインエリア（既存）
+            Constraint::Length(1), // ステータスバー（既存）
+        ])
         .split(f.size());
+    
+    // ヘッダー: リポジトリ名
+    let header_text = if let Some(repo) = &app.selected_repository {
+        format!("Repository: {}                [r] Select Repo", repo.name)
+    } else {
+        "All Issues (assigned to you)         [r] Select Repo".to_string()
+    };
+    let header = Paragraph::new(header_text)
+        .style(Style::default().bg(Color::DarkGray));
+    f.render_widget(header, main_chunks[0]);
 
     // メインエリアを左右に分割 (30% : 70%)
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Percentage(30), Constraint::Percentage(70)].as_ref())
-        .split(main_chunks[0]);
+        .split(main_chunks[1]);
 
     // 左側のエリアをさらに上下に分割
     let left_chunks = Layout::default()
@@ -71,28 +85,46 @@ fn render_issue_list_original(f: &mut Frame, app: &mut App) {
     .block(Block::default().borders(Borders::ALL).title("カテゴリ"));
     f.render_widget(sidebar, left_chunks[0]);
 
-    // 左下: Issue タイトルの一覧リスト
-    let items: Vec<ListItem> = app
-        .issues
-        .iter()
-        .map(|i| {
-            let title = i.title.clone();
-            let state = format!("{:?}", i.state);
-            let content = vec![Line::from(Span::raw(format!("[{}] {}", state, title)))];
-            ListItem::new(content)
-        })
-        .collect();
-
-    let list = List::new(items)
+    // 左下: Issue タイトルの一覧リスト or Empty State
+    if app.issues.is_empty() {
+        let empty_msg = if app.selected_repository.is_some() {
+            "No open issues in this repository."
+        } else {
+            "No issues assigned to you."
+        };
+        
+        let empty = Paragraph::new(vec![
+            Line::from(""),
+            Line::from(empty_msg),
+            Line::from(""),
+        ])
         .block(Block::default().borders(Borders::ALL).title("Issue 一覧"))
-        .highlight_style(
-            Style::default()
-                .bg(Color::DarkGray)
-                .add_modifier(Modifier::BOLD),
-        )
-        .highlight_symbol(">> ");
+        .style(Style::default().fg(Color::Yellow));
+        
+        f.render_widget(empty, left_chunks[1]);
+    } else {
+        let items: Vec<ListItem> = app
+            .issues
+            .iter()
+            .map(|i| {
+                let title = i.title.clone();
+                let state = format!("{:?}", i.state);
+                let content = vec![Line::from(Span::raw(format!("[{}] {}", state, title)))];
+                ListItem::new(content)
+            })
+            .collect();
 
-    f.render_stateful_widget(list, left_chunks[1], &mut app.list_state);
+        let list = List::new(items)
+            .block(Block::default().borders(Borders::ALL).title("Issue 一覧"))
+            .highlight_style(
+                Style::default()
+                    .bg(Color::DarkGray)
+                    .add_modifier(Modifier::BOLD),
+            )
+            .highlight_symbol(">> ");
+
+        f.render_stateful_widget(list, left_chunks[1], &mut app.list_state);
+    }
 
     // 右側: 選択中の Issue の詳細表示
     let main_content = if let Some(issue) = app.selected_issue() {
@@ -109,10 +141,14 @@ fn render_issue_list_original(f: &mut Frame, app: &mut App) {
     f.render_widget(main_panel, chunks[1]);
 
     // ステータス行 (下部)
-    let help_text = " q: 終了 | e: 編集 | j/k: 移動 ";
+    let help_text = if app.selected_repository.is_some() {
+        " q: 終了 | e: 編集 | j/k: 移動 | r: リポジトリ選択 | n: 新規Issue "
+    } else {
+        " q: 終了 | e: 編集 | j/k: 移動 | r: リポジトリ選択 "
+    };
     let status_bar =
         Paragraph::new(help_text).style(Style::default().bg(Color::Blue).fg(Color::White));
-    f.render_widget(status_bar, main_chunks[1]);
+    f.render_widget(status_bar, main_chunks[2]);
 }
 
 /// リポジトリ選択画面を描画
