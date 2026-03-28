@@ -1,5 +1,6 @@
 mod app;
 mod gh;
+mod models;
 mod ui;
 
 use anyhow::{Context, Result};

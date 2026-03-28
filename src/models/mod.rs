@@ -1,0 +1,2 @@
+// データモデルモジュール
+pub mod repository;

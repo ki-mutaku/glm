@@ -3,6 +3,9 @@ use std::io::Write;
 use std::process::Command;
 use tempfile::Builder;
 
+use crate::models::repository::Repository;
+use octocrab::{models::issues::Issue, Octocrab};
+
 /// `gh auth token` コマンドを実行して GitHub トークンを取得する
 pub fn get_github_token() -> Result<String> {
     let output = Command::new("gh")
@@ -60,4 +63,69 @@ pub fn edit_with_external_editor(initial_content: &str) -> Result<Option<String>
     } else {
         Ok(None)
     }
+}
+
+/// 認証ユーザーのプライベートリポジトリ一覧を取得する
+pub async fn fetch_repositories(octocrab: &Octocrab) -> Result<Vec<Repository>> {
+    let mut all_repos = Vec::new();
+    let mut page = octocrab
+        .current()
+        .list_repos_for_authenticated_user()
+        .per_page(100)
+        .send()
+        .await
+        .context("リポジトリ一覧の取得に失敗しました")?;
+    
+    loop {
+        all_repos.extend(
+            page.items
+                .into_iter()
+                .filter(|r| r.private == Some(true))
+                .map(Repository::from)
+        );
+        
+        page = match octocrab.get_page(&page.next).await? {
+            Some(next_page) => next_page,
+            None => break,
+        };
+    }
+    
+    Ok(all_repos)
+}
+
+/// 特定リポジトリの Issue 一覧を取得する
+pub async fn fetch_issues_for_repo(
+    octocrab: &Octocrab,
+    owner: &str,
+    repo: &str,
+) -> Result<Vec<Issue>> {
+    let page = octocrab
+        .issues(owner, repo)
+        .list()
+        .state(octocrab::params::State::Open)
+        .per_page(100)
+        .send()
+        .await
+        .context("Issue 一覧の取得に失敗しました")?;
+    
+    Ok(page.items)
+}
+
+/// 新規 Issue を GitHub に作成する
+pub async fn create_issue(
+    octocrab: &Octocrab,
+    owner: &str,
+    repo: &str,
+    title: &str,
+    body: &str,
+) -> Result<Issue> {
+    let issue = octocrab
+        .issues(owner, repo)
+        .create(title)
+        .body(body)
+        .send()
+        .await
+        .context("Issue の作成に失敗しました")?;
+    
+    Ok(issue)
 }
