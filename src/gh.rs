@@ -65,7 +65,7 @@ pub fn edit_with_external_editor(initial_content: &str) -> Result<Option<String>
     }
 }
 
-/// 認証ユーザーのプライベートリポジトリ一覧を取得する
+/// 認証ユーザーのリポジトリ一覧を取得する
 pub async fn fetch_repositories(octocrab: &Octocrab) -> Result<Vec<Repository>> {
     let mut all_repos = Vec::new();
     let mut page = octocrab
@@ -80,7 +80,6 @@ pub async fn fetch_repositories(octocrab: &Octocrab) -> Result<Vec<Repository>> 
         all_repos.extend(
             page.items
                 .into_iter()
-                .filter(|r| r.private == Some(true))
                 .map(Repository::from)
         );
         

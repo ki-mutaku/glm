@@ -18,10 +18,7 @@ pub fn ui(f: &mut Frame, app: &mut App) {
     match app.current_screen {
         crate::app::Screen::IssueList => render_issue_list_original(f, app),
         crate::app::Screen::RepositorySelector => render_repo_selector(f, app),
-        crate::app::Screen::IssueForm => {
-            // Phase 2 で実装
-            render_issue_list_original(f, app); // 暫定
-        }
+        crate::app::Screen::IssueForm => render_issue_form(f, app),
     }
 }
 
@@ -237,4 +234,69 @@ fn render_repo_selector(f: &mut Frame, app: &mut App) {
     let help = Paragraph::new("j/k: Navigate | Enter: Select | Esc: Cancel")
         .style(Style::default().bg(Color::Blue).fg(Color::White));
     f.render_widget(help, main_chunks[2]);
+}
+
+/// Issue 作成フォーム画面を描画
+fn render_issue_form(f: &mut Frame, app: &mut App) {
+    let main_chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(1),  // ヘッダー
+            Constraint::Length(3),  // Title フィールド
+            Constraint::Length(1),  // "Body:" ラベル
+            Constraint::Min(5),     // Body フィールド
+            Constraint::Length(1),  // ヘルプバー
+        ])
+        .split(f.size());
+    
+    // ヘッダー
+    let repo_name = app
+        .selected_repository
+        .as_ref()
+        .map(|r| r.name.as_str())
+        .unwrap_or("unknown");
+    let header = Paragraph::new(format!("Create Issue: {}                [Esc] Cancel", repo_name))
+        .style(Style::default().bg(Color::DarkGray));
+    f.render_widget(header, main_chunks[0]);
+    
+    // Title フィールド
+    if let Some(form) = &app.issue_form {
+        let title_style = if form.focused_field == crate::app::FormField::Title {
+            Style::default().fg(Color::Blue)
+        } else {
+            Style::default()
+        };
+        
+        let title_block = Block::default()
+            .borders(Borders::ALL)
+            .title("Title")
+            .border_style(title_style);
+        let title_input = Paragraph::new(form.title.as_str())
+            .block(title_block);
+        f.render_widget(title_input, main_chunks[1]);
+        
+        // "Body:" ラベル
+        let body_label = Paragraph::new("Body:");
+        f.render_widget(body_label, main_chunks[2]);
+        
+        // Body フィールド
+        let body_style = if form.focused_field == crate::app::FormField::Body {
+            Style::default().fg(Color::Blue)
+        } else {
+            Style::default()
+        };
+        
+        let body_block = Block::default()
+            .borders(Borders::ALL)
+            .border_style(body_style);
+        let body_input = Paragraph::new(form.body.as_str())
+            .block(body_block)
+            .wrap(Wrap { trim: false });
+        f.render_widget(body_input, main_chunks[3]);
+    }
+    
+    // ヘルプバー
+    let help = Paragraph::new("Tab: Switch Field | Enter: Submit | Ctrl+E: External Editor | Esc: Cancel")
+        .style(Style::default().bg(Color::Blue).fg(Color::White));
+    f.render_widget(help, main_chunks[4]);
 }
