@@ -339,7 +339,7 @@
 
 ### UI 実装
 
-- [ ] P1-T1 [US1] render_repo_selector 関数を実装 in `src/ui.rs`
+- [X] P1-T1 [US1] render_repo_selector 関数を実装 in `src/ui.rs`
   - **詳細**: リポジトリ選択画面の UI 描画ロジック
   ```rust
   use ratatui::{
@@ -430,7 +430,7 @@
   - **完了条件**: 関数が実装され、コンパイルが通る
   - **見積**: 2時間
 
-- [ ] P1-T2 [US1] ui 関数を更新して画面分岐を追加 in `src/ui.rs`
+- [X] P1-T2 [US1] ui 関数を更新して画面分岐を追加 in `src/ui.rs`
   - **詳細**: `app.current_screen` に基づいて適切な描画関数を呼び出す
   ```rust
   pub fn ui(f: &mut Frame, app: &mut App) {
@@ -461,7 +461,7 @@
   - **完了条件**: 画面分岐が動作、既存の Issue リスト表示が正常
   - **見積**: 1時間
 
-- [ ] P1-T3 [US1] 空のリポジトリリスト用の Empty State を実装 in `src/ui.rs`
+- [X] P1-T3 [US1] 空のリポジトリリスト用の Empty State を実装 in `src/ui.rs`
   - **詳細**: リポジトリが0件の場合のメッセージ表示
   ```rust
   fn render_repo_selector(f: &mut Frame, app: &mut App) {
@@ -492,7 +492,7 @@
 
 ### イベントハンドリング
 
-- [ ] P1-T4 [US1] 'r' キーでリポジトリ選択画面に遷移 in `src/main.rs`
+- [X] P1-T4 [US1] 'r' キーでリポジトリ選択画面に遷移 in `src/main.rs`
   - **詳細**: メインループに `'r'` キーのハンドラーを追加
   ```rust
   // run_app() 関数内の match event 部分に追加
@@ -520,7 +520,7 @@
   - **完了条件**: `'r'` キーでリポジトリ選択画面が表示される
   - **見積**: 45分
 
-- [ ] P1-T5 [US1] リポジトリリストでの j/k ナビゲーション in `src/main.rs`
+- [X] P1-T5 [US1] リポジトリリストでの j/k ナビゲーション in `src/main.rs`
   - **詳細**: リポジトリ選択画面で j/k キーが動作するように条件分岐
   ```rust
   // run_app() 関数内の KeyCode::Char('j') と KeyCode::Char('k') 部分を更新
@@ -549,7 +549,7 @@
   - **完了条件**: リポジトリ選択画面で j/k キーが動作する
   - **見積**: 30分
 
-- [ ] P1-T6 [US1] Esc キーでリポジトリ選択をキャンセル in `src/main.rs`
+- [X] P1-T6 [US1] Esc キーでリポジトリ選択をキャンセル in `src/main.rs`
   - **詳細**: リポジトリ選択画面で Esc キーを押すと Issue リストに戻る
   ```rust
   KeyCode::Esc => {
@@ -570,7 +570,7 @@
   - **完了条件**: Esc キーで Issue リストに戻る、選択リポジトリは変更されない
   - **見積**: 20分
 
-- [ ] P1-T7 [US1] Enter キーでリポジトリを選択確定 in `src/main.rs`
+- [X] P1-T7 [US1] Enter キーでリポジトリを選択確定 in `src/main.rs`
   - **詳細**: リポジトリ選択画面で Enter キーを押すと選択を確定し、Issue を取得
   ```rust
   KeyCode::Enter => {

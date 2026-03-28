@@ -84,45 +84,128 @@ async fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> Result
 
         if crossterm::event::poll(timeout)? {
             if let Event::Key(key) = event::read()? {
+                // エラーメッセージ表示中は任意のキーでクリア
+                if app.error_message.is_some() {
+                    app.clear_error();
+                    continue;
+                }
+                
                 match key.code {
                     KeyCode::Char('q') => return Ok(()),
-                    KeyCode::Char('j') | KeyCode::Down => app.next(),
-                    KeyCode::Char('k') | KeyCode::Up => app.previous(),
-                    KeyCode::Char('e') => {
-                        // 外部エディタでの編集
-                        if let Some(index) = app.list_state.selected() {
-                            let issue = app.issues[index].clone();
-
-                            // ターミナルを一時復元
-                            disable_raw_mode()?;
-                            execute!(io::stdout(), LeaveAlternateScreen, DisableMouseCapture)?;
-
-                            let new_body =
-                                gh::edit_with_external_editor(issue.body.as_deref().unwrap_or(""))?;
-
-                            // API を叩いて GitHub を更新
-                            if let Some(body) = new_body {
-                                if body != issue.body.as_deref().unwrap_or("") {
-                                    if let Some((owner, repo)) =
-                                        gh::parse_repo_owner(issue.repository_url.as_str())
-                                    {
-                                        app.octocrab
-                                            .issues(owner, repo)
-                                            .update(issue.number)
-                                            .body(&body)
-                                            .send()
-                                            .await
-                                            .context("GitHub の Issue 更新に失敗しました")?;
-
-                                        app.update_issue_body(index, body);
+                    KeyCode::Char('j') | KeyCode::Down => {
+                        match app.current_screen {
+                            app::Screen::IssueList => app.next(),
+                            app::Screen::RepositorySelector => app.next_repo(),
+                            app::Screen::IssueForm => {
+                                // Phase 2 で実装
+                            }
+                        }
+                    }
+                    KeyCode::Char('k') | KeyCode::Up => {
+                        match app.current_screen {
+                            app::Screen::IssueList => app.previous(),
+                            app::Screen::RepositorySelector => app.previous_repo(),
+                            app::Screen::IssueForm => {
+                                // Phase 2 で実装
+                            }
+                        }
+                    }
+                    KeyCode::Char('r') => {
+                        // リポジトリ選択画面に遷移
+                        app.current_screen = app::Screen::RepositorySelector;
+                        
+                        // リポジトリ一覧を取得
+                        match gh::fetch_repositories(&app.octocrab).await {
+                            Ok(repos) => {
+                                app.repositories = repos;
+                                if !app.repositories.is_empty() {
+                                    app.repo_list_state.select(Some(0));
+                                }
+                            }
+                            Err(e) => {
+                                app.set_error(format!("Failed to fetch repositories: {}", e));
+                            }
+                        }
+                    }
+                    KeyCode::Esc => {
+                        match app.current_screen {
+                            app::Screen::RepositorySelector => {
+                                app.current_screen = app::Screen::IssueList;
+                            }
+                            app::Screen::IssueForm => {
+                                // Phase 2 で実装
+                            }
+                            _ => {}
+                        }
+                    }
+                    KeyCode::Enter => {
+                        match app.current_screen {
+                            app::Screen::RepositorySelector => {
+                                if let Some(repo) = app.selected_repository_item() {
+                                    let repo = repo.clone();
+                                    app.select_repository(repo.clone());
+                                    
+                                    // 選択リポジトリの Issue を取得
+                                    match gh::fetch_issues_for_repo(&app.octocrab, &repo.owner, &repo.repo).await {
+                                        Ok(issues) => {
+                                            app.issues = issues;
+                                            if !app.issues.is_empty() {
+                                                app.list_state.select(Some(0));
+                                            } else {
+                                                app.list_state.select(None);
+                                            }
+                                            app.current_screen = app::Screen::IssueList;
+                                        }
+                                        Err(e) => {
+                                            app.set_error(format!("Failed to fetch issues: {}", e));
+                                            app.current_screen = app::Screen::IssueList;
+                                        }
                                     }
                                 }
                             }
+                            app::Screen::IssueForm => {
+                                // Phase 2 で実装
+                            }
+                            _ => {}
+                        }
+                    }
+                    KeyCode::Char('e') => {
+                        // 外部エディタでの編集（Issue リスト画面のみ）
+                        if app.current_screen == app::Screen::IssueList {
+                            if let Some(index) = app.list_state.selected() {
+                                let issue = app.issues[index].clone();
 
-                            // TUI を再開
-                            enable_raw_mode()?;
-                            execute!(io::stdout(), EnterAlternateScreen, EnableMouseCapture)?;
-                            terminal.clear()?;
+                                // ターミナルを一時復元
+                                disable_raw_mode()?;
+                                execute!(io::stdout(), LeaveAlternateScreen, DisableMouseCapture)?;
+
+                                let new_body =
+                                    gh::edit_with_external_editor(issue.body.as_deref().unwrap_or(""))?;
+
+                                // API を叩いて GitHub を更新
+                                if let Some(body) = new_body {
+                                    if body != issue.body.as_deref().unwrap_or("") {
+                                        if let Some((owner, repo)) =
+                                            gh::parse_repo_owner(issue.repository_url.as_str())
+                                        {
+                                            app.octocrab
+                                                .issues(owner, repo)
+                                                .update(issue.number)
+                                                .body(&body)
+                                                .send()
+                                                .await
+                                                .context("GitHub の Issue 更新に失敗しました")?;
+
+                                            app.update_issue_body(index, body);
+                                        }
+                                    }
+                                }
+
+                                // TUI を再開
+                                enable_raw_mode()?;
+                                execute!(io::stdout(), EnterAlternateScreen, EnableMouseCapture)?;
+                                terminal.clear()?;
+                            }
                         }
                     }
                     _ => {}
