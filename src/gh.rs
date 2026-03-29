@@ -94,7 +94,8 @@ pub async fn fetch_issues_for_repo(
     owner: &str,
     repo: &str,
 ) -> Result<Vec<Issue>> {
-    let page = octocrab
+    let mut all_issues = Vec::new();
+    let mut page = octocrab
         .issues(owner, repo)
         .list()
         .state(octocrab::params::State::Open)
@@ -103,7 +104,16 @@ pub async fn fetch_issues_for_repo(
         .await
         .context("Issue 一覧の取得に失敗しました")?;
 
-    Ok(page.items)
+    loop {
+        all_issues.extend(page.items);
+
+        page = match octocrab.get_page(&page.next).await? {
+            Some(next_page) => next_page,
+            None => break,
+        };
+    }
+
+    Ok(all_issues)
 }
 
 /// 新規 Issue を GitHub に作成する
