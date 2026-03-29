@@ -1,13 +1,41 @@
 use octocrab::{models::issues::Issue, Octocrab};
 use ratatui::widgets::ListState;
 
+use crate::models::Repository;
+
+/// 現在表示している画面を表す enum
+#[derive(Debug, Clone, PartialEq)]
+pub enum Screen {
+    /// My Issues 画面 (デフォルト)
+    IssueList,
+    /// リポジトリ選択画面
+    RepositorySelector,
+    /// Issue タイトル入力画面（フローティング）
+    IssueTitleInput { title: String },
+    /// Issue ドラフト確認・編集画面
+    IssueDraft { title: String, body: String },
+}
+
 pub struct App {
+    // === 既存フィールド ===
     /// GitHub API クライアント
     pub octocrab: Octocrab,
     /// 取得した Issue のリスト
     pub issues: Vec<Issue>,
     /// リストの選択状態（どの項目がハイライトされているか）
     pub list_state: ListState,
+    
+    // === 新規フィールド ===
+    /// 現在表示している画面
+    pub current_screen: Screen,
+    /// 選択中のリポジトリ
+    pub selected_repository: Option<Repository>,
+    /// 取得したリポジトリのリスト
+    pub repositories: Vec<Repository>,
+    /// リポジトリリストの選択状態
+    pub repo_list_state: ListState,
+    /// エラーメッセージ（表示用）
+    pub error_message: Option<String>,
 }
 
 impl App {
@@ -21,6 +49,11 @@ impl App {
             octocrab,
             issues,
             list_state,
+            current_screen: Screen::IssueList,
+            selected_repository: None,
+            repositories: Vec::new(),
+            repo_list_state: ListState::default(),
+            error_message: None,
         }
     }
 
@@ -64,5 +97,56 @@ impl App {
         if let Some(issue) = self.issues.get_mut(index) {
             issue.body = Some(new_body);
         }
+    }
+    
+    /// エラーメッセージを設定
+    pub fn set_error(&mut self, msg: String) {
+        self.error_message = Some(msg);
+    }
+    
+    /// エラーメッセージをクリア
+    pub fn clear_error(&mut self) {
+        self.error_message = None;
+    }
+    
+    /// リポジトリを選択
+    pub fn select_repository(&mut self, repo: Repository) {
+        self.selected_repository = Some(repo);
+    }
+    
+    /// リポジトリリストの次の項目を選択
+    pub fn next_repo(&mut self) {
+        let i = match self.repo_list_state.selected() {
+            Some(i) => {
+                if i >= self.repositories.len().saturating_sub(1) {
+                    self.repositories.len().saturating_sub(1)
+                } else {
+                    i + 1
+                }
+            }
+            None => 0,
+        };
+        self.repo_list_state.select(Some(i));
+    }
+    
+    /// リポジトリリストの前の項目を選択
+    pub fn previous_repo(&mut self) {
+        let i = match self.repo_list_state.selected() {
+            Some(i) => {
+                if i == 0 {
+                    0
+                } else {
+                    i - 1
+                }
+            }
+            None => 0,
+        };
+        self.repo_list_state.select(Some(i));
+    }
+    
+    /// 現在選択されているリポジトリを取得
+    pub fn selected_repository_item(&self) -> Option<&Repository> {
+        self.repo_list_state.selected()
+            .and_then(|i| self.repositories.get(i))
     }
 }
