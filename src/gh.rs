@@ -75,20 +75,16 @@ pub async fn fetch_repositories(octocrab: &Octocrab) -> Result<Vec<Repository>> 
         .send()
         .await
         .context("リポジトリ一覧の取得に失敗しました")?;
-    
+
     loop {
-        all_repos.extend(
-            page.items
-                .into_iter()
-                .map(Repository::from)
-        );
-        
+        all_repos.extend(page.items.into_iter().map(Repository::from));
+
         page = match octocrab.get_page(&page.next).await? {
             Some(next_page) => next_page,
             None => break,
         };
     }
-    
+
     Ok(all_repos)
 }
 
@@ -106,7 +102,7 @@ pub async fn fetch_issues_for_repo(
         .send()
         .await
         .context("Issue 一覧の取得に失敗しました")?;
-    
+
     Ok(page.items)
 }
 
@@ -125,7 +121,7 @@ pub async fn create_issue(
         .send()
         .await
         .context("Issue の作成に失敗しました")?;
-    
+
     Ok(issue)
 }
 
@@ -138,7 +134,7 @@ mod tests {
         // 正常系: 正しい形式のURLをテスト
         let url = "https://api.github.com/repos/octocat/Hello-World";
         let result = parse_repo_owner(url);
-        
+
         assert!(result.is_some());
         let (owner, repo) = result.unwrap();
         assert_eq!(owner, "octocat");
@@ -150,7 +146,7 @@ mod tests {
         // エッジケース: 末尾にスラッシュがある場合
         let url = "https://api.github.com/repos/octocat/Hello-World/";
         let result = parse_repo_owner(url);
-        
+
         assert!(result.is_some());
         let (owner, repo) = result.unwrap();
         assert_eq!(owner, "Hello-World");
@@ -162,7 +158,7 @@ mod tests {
         // 正常系: 短いURLでも owner/repo を抽出
         let url = "owner/repo";
         let result = parse_repo_owner(url);
-        
+
         assert!(result.is_some());
         let (owner, repo) = result.unwrap();
         assert_eq!(owner, "owner");
@@ -174,7 +170,7 @@ mod tests {
         // エッジケース: 単一のパスのみの場合
         let url = "singlepart";
         let result = parse_repo_owner(url);
-        
+
         // スラッシュがないので、最後の2つを取得できず None を返す
         assert!(result.is_none());
     }
@@ -184,7 +180,7 @@ mod tests {
         // エッジケース: 空文字列の場合
         let url = "";
         let result = parse_repo_owner(url);
-        
+
         // 空文字列は有効な owner/repo として解析されず None を返す
         assert!(result.is_none());
     }
@@ -194,7 +190,7 @@ mod tests {
         // 正常系: ダッシュやアンダースコアを含むリポジトリ名
         let url = "https://api.github.com/repos/rust-lang/rust_analyzer";
         let result = parse_repo_owner(url);
-        
+
         assert!(result.is_some());
         let (owner, repo) = result.unwrap();
         assert_eq!(owner, "rust-lang");
@@ -206,7 +202,7 @@ mod tests {
         // 正常系: 数字を含むリポジトリ名
         let url = "https://api.github.com/repos/user123/project456";
         let result = parse_repo_owner(url);
-        
+
         assert!(result.is_some());
         let (owner, repo) = result.unwrap();
         assert_eq!(owner, "user123");
@@ -218,7 +214,7 @@ mod tests {
         // 正常系: 長いパスでも最後の2つを抽出
         let url = "https://api.github.com/extra/path/repos/testowner/testrepo";
         let result = parse_repo_owner(url);
-        
+
         assert!(result.is_some());
         let (owner, repo) = result.unwrap();
         assert_eq!(owner, "testowner");

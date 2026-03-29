@@ -11,8 +11,7 @@ pub struct AppConfig {
 }
 
 fn get_config_path() -> Option<PathBuf> {
-    ProjectDirs::from("com", "glm", "glm")
-        .map(|dirs| dirs.config_dir().join("config.json"))
+    ProjectDirs::from("com", "glm", "glm").map(|dirs| dirs.config_dir().join("config.json"))
 }
 
 pub fn load_config() -> AppConfig {
@@ -85,12 +84,10 @@ mod tests {
         };
 
         // シリアライズ
-        let json = serde_json::to_string_pretty(&config)
-            .expect("シリアライズに失敗");
+        let json = serde_json::to_string_pretty(&config).expect("シリアライズに失敗");
 
         // デシリアライズ
-        let deserialized: AppConfig = serde_json::from_str(&json)
-            .expect("デシリアライズに失敗");
+        let deserialized: AppConfig = serde_json::from_str(&json).expect("デシリアライズに失敗");
 
         assert!(deserialized.last_repository.is_some());
         let repo = deserialized.last_repository.unwrap();
@@ -107,11 +104,9 @@ mod tests {
             last_repository: None,
         };
 
-        let json = serde_json::to_string(&config)
-            .expect("シリアライズに失敗");
+        let json = serde_json::to_string(&config).expect("シリアライズに失敗");
 
-        let deserialized: AppConfig = serde_json::from_str(&json)
-            .expect("デシリアライズに失敗");
+        let deserialized: AppConfig = serde_json::from_str(&json).expect("デシリアライズに失敗");
 
         assert!(deserialized.last_repository.is_none());
     }

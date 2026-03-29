@@ -82,10 +82,9 @@ mod tests {
 
         // シリアライズ
         let json = serde_json::to_string(&repo).expect("シリアライズに失敗");
-        
+
         // デシリアライズ
-        let deserialized: Repository = serde_json::from_str(&json)
-            .expect("デシリアライズに失敗");
+        let deserialized: Repository = serde_json::from_str(&json).expect("デシリアライズに失敗");
 
         assert_eq!(deserialized.name, repo.name);
         assert_eq!(deserialized.owner, repo.owner);

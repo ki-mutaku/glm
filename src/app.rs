@@ -24,7 +24,7 @@ pub struct App {
     pub issues: Vec<Issue>,
     /// リストの選択状態（どの項目がハイライトされているか）
     pub list_state: ListState,
-    
+
     // === 新規フィールド ===
     /// 現在表示している画面
     pub current_screen: Screen,
@@ -98,22 +98,22 @@ impl App {
             issue.body = Some(new_body);
         }
     }
-    
+
     /// エラーメッセージを設定
     pub fn set_error(&mut self, msg: String) {
         self.error_message = Some(msg);
     }
-    
+
     /// エラーメッセージをクリア
     pub fn clear_error(&mut self) {
         self.error_message = None;
     }
-    
+
     /// リポジトリを選択
     pub fn select_repository(&mut self, repo: Repository) {
         self.selected_repository = Some(repo);
     }
-    
+
     /// リポジトリリストの次の項目を選択
     pub fn next_repo(&mut self) {
         let i = match self.repo_list_state.selected() {
@@ -128,7 +128,7 @@ impl App {
         };
         self.repo_list_state.select(Some(i));
     }
-    
+
     /// リポジトリリストの前の項目を選択
     pub fn previous_repo(&mut self) {
         let i = match self.repo_list_state.selected() {
@@ -143,10 +143,11 @@ impl App {
         };
         self.repo_list_state.select(Some(i));
     }
-    
+
     /// 現在選択されているリポジトリを取得
     pub fn selected_repository_item(&self) -> Option<&Repository> {
-        self.repo_list_state.selected()
+        self.repo_list_state
+            .selected()
             .and_then(|i| self.repositories.get(i))
     }
 }
