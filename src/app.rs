@@ -10,38 +10,10 @@ pub enum Screen {
     IssueList,
     /// リポジトリ選択画面
     RepositorySelector,
-    /// Issue 作成フォーム画面
-    IssueForm,
-}
-
-/// Issue 作成フォームの入力状態
-#[derive(Debug, Clone)]
-pub struct IssueFormState {
-    /// Issue タイトル
-    pub title: String,
-    /// Issue 本文
-    pub body: String,
-    /// フォーカス中のフィールド
-    pub focused_field: FormField,
-}
-
-/// フォーム内のフィールドを識別する enum
-#[derive(Debug, Clone, PartialEq)]
-pub enum FormField {
-    /// タイトルフィールド
-    Title,
-    /// 本文フィールド
-    Body,
-}
-
-impl Default for IssueFormState {
-    fn default() -> Self {
-        Self {
-            title: String::new(),
-            body: String::new(),
-            focused_field: FormField::Title,
-        }
-    }
+    /// Issue タイトル入力画面（フローティング）
+    IssueTitleInput { title: String },
+    /// Issue ドラフト確認・編集画面
+    IssueDraft { title: String, body: String },
 }
 
 pub struct App {
@@ -62,8 +34,6 @@ pub struct App {
     pub repositories: Vec<Repository>,
     /// リポジトリリストの選択状態
     pub repo_list_state: ListState,
-    /// Issue 作成フォームの状態
-    pub issue_form: Option<IssueFormState>,
     /// エラーメッセージ（表示用）
     pub error_message: Option<String>,
 }
@@ -83,7 +53,6 @@ impl App {
             selected_repository: None,
             repositories: Vec::new(),
             repo_list_state: ListState::default(),
-            issue_form: None,
             error_message: None,
         }
     }

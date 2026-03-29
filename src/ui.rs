@@ -1,58 +1,68 @@
-use crate::app::App;
+use crate::app::{App, Screen};
 use ratatui::{
-    layout::{Constraint, Direction, Layout},
+    layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, Paragraph, Wrap},
+    widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Wrap},
     Frame,
 };
 
 /// UI の描画
 pub fn ui(f: &mut Frame, app: &mut App) {
-    // エラーバーのチェック（後で実装）
+    let current_screen = app.current_screen.clone();
+    match current_screen {
+        Screen::IssueList => render_issue_list(f, app),
+        Screen::RepositorySelector => render_repo_selector(f, app),
+        Screen::IssueTitleInput { .. } => {
+            // 背景を描画してから、その上にフローティングUIを描画
+            render_issue_list(f, app);
+            render_title_input_floating(f, app);
+        }
+        Screen::IssueDraft { .. } => render_issue_draft(f, app),
+    }
+
+    // エラーメッセージは最前面に表示
     if let Some(err) = &app.error_message {
         render_error_bar(f, err);
-        return;
-    }
-    
-    match app.current_screen {
-        crate::app::Screen::IssueList => render_issue_list_original(f, app),
-        crate::app::Screen::RepositorySelector => render_repo_selector(f, app),
-        crate::app::Screen::IssueForm => render_issue_form(f, app),
     }
 }
 
 /// エラーバーを描画
 fn render_error_bar(f: &mut Frame, error_message: &str) {
-    let main_chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([Constraint::Length(3), Constraint::Min(0)].as_ref())
-        .split(f.size());
-    
-    let error_text = format!("❌ Error: {}\n\nPress any key to continue...", error_message);
-    let error_bar = Paragraph::new(error_text)
-        .style(Style::default().bg(Color::Red).fg(Color::White))
-        .block(Block::default().borders(Borders::ALL).title("Error"));
-    f.render_widget(error_bar, main_chunks[0]);
+    let area = centered_rect(80, 20, f.size());
+    f.render_widget(Clear, area); // 背景をクリア
+
+    let error_text = format!("❌ エラー:\n\n{}\n\n任意のキーを押して続行...", error_message);
+    let error_paragraph = Paragraph::new(error_text)
+        .style(Style::default().fg(Color::White))
+        .wrap(Wrap { trim: true })
+        .block(
+            Block::default()
+                .title("エラー")
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Red))
+                .style(Style::default().bg(Color::Rgb(50, 0, 0))),
+        );
+    f.render_widget(error_paragraph, area);
 }
 
-/// Issue リスト画面を描画（既存の ui 関数の中身）
-fn render_issue_list_original(f: &mut Frame, app: &mut App) {
+/// Issue リスト画面を描画
+fn render_issue_list(f: &mut Frame, app: &mut App) {
     // 画面全体を3分割 (ヘッダー : メインエリア : ステータス行)
     let main_chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(1), // ヘッダー（新規追加）
-            Constraint::Min(0),    // メインエリア（既存）
-            Constraint::Length(1), // ステータスバー（既存）
+            Constraint::Length(1), // ヘッダー
+            Constraint::Min(0),    // メインエリア
+            Constraint::Length(1), // ステータスバー
         ])
         .split(f.size());
     
     // ヘッダー: リポジトリ名
     let header_text = if let Some(repo) = &app.selected_repository {
-        format!("Repository: {}                [r] Select Repo", repo.name)
+        format!("リポジトリ: {}                [r] リポジトリ選択", repo.name)
     } else {
-        "All Issues (assigned to you)         [r] Select Repo".to_string()
+        "全Issue (自分にアサイン)         [r] リポジトリ選択".to_string()
     };
     let header = Paragraph::new(header_text)
         .style(Style::default().bg(Color::DarkGray));
@@ -64,30 +74,12 @@ fn render_issue_list_original(f: &mut Frame, app: &mut App) {
         .constraints([Constraint::Percentage(30), Constraint::Percentage(70)].as_ref())
         .split(main_chunks[1]);
 
-    // 左側のエリアをさらに上下に分割
-    let left_chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([Constraint::Length(5), Constraint::Min(0)].as_ref())
-        .split(chunks[0]);
-
-    // 左上: カテゴリ表示
-    let sidebar = Paragraph::new(vec![
-        Line::from(vec![Span::styled(
-            "● My Issues",
-            Style::default().add_modifier(Modifier::BOLD),
-        )]),
-        Line::from("  Inbox"),
-        Line::from("  Projects"),
-    ])
-    .block(Block::default().borders(Borders::ALL).title("カテゴリ"));
-    f.render_widget(sidebar, left_chunks[0]);
-
     // 左下: Issue タイトルの一覧リスト or Empty State
     if app.issues.is_empty() {
         let empty_msg = if app.selected_repository.is_some() {
-            "No open issues in this repository."
+            "このリポジトリにオープンなIssueはありません。"
         } else {
-            "No issues assigned to you."
+            "あなたにアサインされたIssueはありません。"
         };
         
         let empty = Paragraph::new(vec![
@@ -98,16 +90,20 @@ fn render_issue_list_original(f: &mut Frame, app: &mut App) {
         .block(Block::default().borders(Borders::ALL).title("Issue 一覧"))
         .style(Style::default().fg(Color::Yellow));
         
-        f.render_widget(empty, left_chunks[1]);
+        f.render_widget(empty, chunks[0]);
     } else {
         let items: Vec<ListItem> = app
             .issues
             .iter()
             .map(|i| {
-                let title = i.title.clone();
-                let state = format!("{:?}", i.state);
-                let content = vec![Line::from(Span::raw(format!("[{}] {}", state, title)))];
-                ListItem::new(content)
+                let state_color = match i.state {
+                    octocrab::models::IssueState::Open => Color::Green,
+                    octocrab::models::IssueState::Closed => Color::Red,
+                    _ => Color::Gray,
+                };
+                let state = Span::styled(format!("[{:?}]", i.state), Style::default().fg(state_color));
+                let title = Span::raw(format!(" {}", i.title));
+                ListItem::new(Line::from(vec![state, title]))
             })
             .collect();
 
@@ -120,7 +116,7 @@ fn render_issue_list_original(f: &mut Frame, app: &mut App) {
             )
             .highlight_symbol(">> ");
 
-        f.render_stateful_widget(list, left_chunks[1], &mut app.list_state);
+        f.render_stateful_widget(list, chunks[0], &mut app.list_state);
     }
 
     // 右側: 選択中の Issue の詳細表示
@@ -160,7 +156,7 @@ fn render_repo_selector(f: &mut Frame, app: &mut App) {
         .split(f.size());
     
     // ヘッダー
-    let header = Paragraph::new("Select Repository                        [Esc] Cancel")
+    let header = Paragraph::new("リポジトリ選択                        [Esc] キャンセル")
         .style(Style::default().bg(Color::DarkGray));
     f.render_widget(header, main_chunks[0]);
     
@@ -174,12 +170,12 @@ fn render_repo_selector(f: &mut Frame, app: &mut App) {
     if app.repositories.is_empty() {
         let empty_msg = Paragraph::new(vec![
             Line::from(""),
-            Line::from("No private repositories found."),
+            Line::from("リポジトリが見つかりません。"),
             Line::from(""),
-            Line::from("Please check your GitHub access permissions"),
-            Line::from("or run `gh auth login`."),
+            Line::from("GitHub のアクセス権限を確認するか、"),
+            Line::from("`gh auth login` を実行してください。"),
         ])
-        .block(Block::default().borders(Borders::ALL).title("Repositories"))
+        .block(Block::default().borders(Borders::ALL).title("リポジトリ一覧"))
         .style(Style::default().fg(Color::Yellow));
         
         f.render_widget(empty_msg, content_chunks[0]);
@@ -191,7 +187,7 @@ fn render_repo_selector(f: &mut Frame, app: &mut App) {
             .collect();
         
         let list = List::new(items)
-            .block(Block::default().borders(Borders::ALL).title("Repositories"))
+            .block(Block::default().borders(Borders::ALL).title("リポジトリ一覧"))
             .highlight_style(
                 Style::default()
                     .bg(Color::DarkGray)
@@ -205,98 +201,126 @@ fn render_repo_selector(f: &mut Frame, app: &mut App) {
     if let Some(repo) = app.selected_repository_item() {
         let detail_text = vec![
             Line::from(vec![
-                Span::styled("Repository: ", Style::default().add_modifier(Modifier::BOLD)),
+                Span::styled("リポジトリ: ", Style::default().add_modifier(Modifier::BOLD)),
                 Span::raw(&repo.name),
             ]),
             Line::from(""),
             Line::from(vec![
-                Span::styled("Description: ", Style::default().add_modifier(Modifier::BOLD)),
+                Span::styled("説明: ", Style::default().add_modifier(Modifier::BOLD)),
                 Span::raw(repo.description.as_deref().unwrap_or("N/A")),
             ]),
             Line::from(""),
             Line::from(vec![
-                Span::styled("Stars: ", Style::default().add_modifier(Modifier::BOLD)),
+                Span::styled("スター数: ", Style::default().add_modifier(Modifier::BOLD)),
                 Span::raw(format!("⭐ {}", repo.stars)),
             ]),
             Line::from(""),
             Line::from(vec![
-                Span::styled("Private: ", Style::default().add_modifier(Modifier::BOLD)),
-                Span::raw(if repo.private { "Yes" } else { "No" }),
+                Span::styled("プライベート: ", Style::default().add_modifier(Modifier::BOLD)),
+                Span::raw(if repo.private { "はい" } else { "いいえ" }),
             ]),
         ];
         
         let detail = Paragraph::new(detail_text)
-            .block(Block::default().borders(Borders::ALL).title("Details"));
+            .block(Block::default().borders(Borders::ALL).title("詳細"));
         f.render_widget(detail, content_chunks[1]);
     }
     
     // ヘルプバー
-    let help = Paragraph::new("j/k: Navigate | Enter: Select | Esc: Cancel")
+    let help = Paragraph::new("j/k: 移動 | Enter: 選択 | Esc: キャンセル")
         .style(Style::default().bg(Color::Blue).fg(Color::White));
     f.render_widget(help, main_chunks[2]);
 }
 
-/// Issue 作成フォーム画面を描画
-fn render_issue_form(f: &mut Frame, app: &mut App) {
+/// Issue タイトル入力用のフローティングUIを描画
+fn render_title_input_floating(f: &mut Frame, app: &mut App) {
+    let title = if let Screen::IssueTitleInput { title } = &app.current_screen {
+        title.as_str()
+    } else {
+        return; // このUIは IssueTitleInput 状態でのみ描画される
+    };
+
+    let width = f.size().width * 60 / 100;
+    let height = 3;
+    let x = (f.size().width - width) / 2;
+    let y = (f.size().height - height) / 2;
+    let area = Rect::new(x, y, width, height);
+    f.render_widget(Clear, area); // 背景をクリアして重ね描き
+
+    let input_text = format!("{}▋", title); // カーソル表示
+    
+    let paragraph = Paragraph::new(input_text)
+        .style(Style::default().fg(Color::White))
+        .block(
+            Block::default()
+                .title(" Issue のタイトルを入力 (Enterで確定, Escでキャンセル) ")
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Yellow)),
+        );
+    
+    f.render_widget(paragraph, area);
+}
+
+/// Issue ドラフト画面を描画
+fn render_issue_draft(f: &mut Frame, app: &mut App) {
+    let (title, body) = if let Screen::IssueDraft { title, body } = &app.current_screen {
+        (title.as_str(), body.as_str())
+    } else {
+        return;
+    };
+    
     let main_chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Length(1),  // ヘッダー
             Constraint::Length(3),  // Title フィールド
-            Constraint::Length(1),  // "Body:" ラベル
             Constraint::Min(5),     // Body フィールド
             Constraint::Length(1),  // ヘルプバー
         ])
         .split(f.size());
-    
+
     // ヘッダー
-    let repo_name = app
-        .selected_repository
-        .as_ref()
-        .map(|r| r.name.as_str())
-        .unwrap_or("unknown");
-    let header = Paragraph::new(format!("Create Issue: {}                [Esc] Cancel", repo_name))
+    let repo_name = app.selected_repository.as_ref().map(|r| r.name.as_str()).unwrap_or("unknown");
+    let header = Paragraph::new(format!("Issue 作成: {}                [Esc] キャンセル", repo_name))
         .style(Style::default().bg(Color::DarkGray));
     f.render_widget(header, main_chunks[0]);
-    
+
     // Title フィールド
-    if let Some(form) = &app.issue_form {
-        let title_style = if form.focused_field == crate::app::FormField::Title {
-            Style::default().fg(Color::Blue)
-        } else {
-            Style::default()
-        };
-        
-        let title_block = Block::default()
-            .borders(Borders::ALL)
-            .title("Title")
-            .border_style(title_style);
-        let title_input = Paragraph::new(form.title.as_str())
-            .block(title_block);
-        f.render_widget(title_input, main_chunks[1]);
-        
-        // "Body:" ラベル
-        let body_label = Paragraph::new("Body:");
-        f.render_widget(body_label, main_chunks[2]);
-        
-        // Body フィールド
-        let body_style = if form.focused_field == crate::app::FormField::Body {
-            Style::default().fg(Color::Blue)
-        } else {
-            Style::default()
-        };
-        
-        let body_block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(body_style);
-        let body_input = Paragraph::new(form.body.as_str())
-            .block(body_block)
-            .wrap(Wrap { trim: false });
-        f.render_widget(body_input, main_chunks[3]);
-    }
+    let title_block = Block::default().borders(Borders::ALL).title("タイトル");
+    f.render_widget(Paragraph::new(title).block(title_block), main_chunks[1]);
+    
+    // Body フィールド
+    let body_block = Block::default().borders(Borders::ALL).title("詳細");
+    let display_body = if body.is_empty() {
+        "（本文なし）\n\n'e' キーを押して外部エディタで編集してください。"
+    } else {
+        body
+    };
+    f.render_widget(Paragraph::new(display_body).block(body_block).wrap(Wrap { trim: true }), main_chunks[2]);
     
     // ヘルプバー
-    let help = Paragraph::new("Tab: Switch Field | Enter: Submit | Ctrl+E: External Editor | Esc: Cancel")
+    let help = Paragraph::new(" e: 詳細を編集 | Enter: この内容で作成 | Esc: キャンセル ")
         .style(Style::default().bg(Color::Blue).fg(Color::White));
-    f.render_widget(help, main_chunks[4]);
+    f.render_widget(help, main_chunks[3]);
+}
+
+/// 画面中央に指定したパーセンテージの Rect を作成するヘルパー関数
+fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
+    let popup_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Percentage((100 - percent_y) / 2),
+            Constraint::Percentage(percent_y),
+            Constraint::Percentage((100 - percent_y) / 2),
+        ])
+        .split(r);
+
+    Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage((100 - percent_x) / 2),
+            Constraint::Percentage(percent_x),
+            Constraint::Percentage((100 - percent_x) / 2),
+        ])
+        .split(popup_layout[1])[1]
 }

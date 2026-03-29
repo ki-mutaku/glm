@@ -128,3 +128,100 @@ pub async fn create_issue(
     
     Ok(issue)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_repo_owner_valid_url() {
+        // 正常系: 正しい形式のURLをテスト
+        let url = "https://api.github.com/repos/octocat/Hello-World";
+        let result = parse_repo_owner(url);
+        
+        assert!(result.is_some());
+        let (owner, repo) = result.unwrap();
+        assert_eq!(owner, "octocat");
+        assert_eq!(repo, "Hello-World");
+    }
+
+    #[test]
+    fn test_parse_repo_owner_trailing_slash() {
+        // エッジケース: 末尾にスラッシュがある場合
+        let url = "https://api.github.com/repos/octocat/Hello-World/";
+        let result = parse_repo_owner(url);
+        
+        assert!(result.is_some());
+        let (owner, repo) = result.unwrap();
+        assert_eq!(owner, "Hello-World");
+        assert_eq!(repo, "");
+    }
+
+    #[test]
+    fn test_parse_repo_owner_short_url() {
+        // 正常系: 短いURLでも owner/repo を抽出
+        let url = "owner/repo";
+        let result = parse_repo_owner(url);
+        
+        assert!(result.is_some());
+        let (owner, repo) = result.unwrap();
+        assert_eq!(owner, "owner");
+        assert_eq!(repo, "repo");
+    }
+
+    #[test]
+    fn test_parse_repo_owner_single_part() {
+        // エッジケース: 単一のパスのみの場合
+        let url = "singlepart";
+        let result = parse_repo_owner(url);
+        
+        // スラッシュがないので、最後の2つを取得できず None を返す
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_parse_repo_owner_empty_string() {
+        // エッジケース: 空文字列の場合
+        let url = "";
+        let result = parse_repo_owner(url);
+        
+        // 空文字列は有効な owner/repo として解析されず None を返す
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_parse_repo_owner_with_dash_and_underscore() {
+        // 正常系: ダッシュやアンダースコアを含むリポジトリ名
+        let url = "https://api.github.com/repos/rust-lang/rust_analyzer";
+        let result = parse_repo_owner(url);
+        
+        assert!(result.is_some());
+        let (owner, repo) = result.unwrap();
+        assert_eq!(owner, "rust-lang");
+        assert_eq!(repo, "rust_analyzer");
+    }
+
+    #[test]
+    fn test_parse_repo_owner_with_numbers() {
+        // 正常系: 数字を含むリポジトリ名
+        let url = "https://api.github.com/repos/user123/project456";
+        let result = parse_repo_owner(url);
+        
+        assert!(result.is_some());
+        let (owner, repo) = result.unwrap();
+        assert_eq!(owner, "user123");
+        assert_eq!(repo, "project456");
+    }
+
+    #[test]
+    fn test_parse_repo_owner_long_path() {
+        // 正常系: 長いパスでも最後の2つを抽出
+        let url = "https://api.github.com/extra/path/repos/testowner/testrepo";
+        let result = parse_repo_owner(url);
+        
+        assert!(result.is_some());
+        let (owner, repo) = result.unwrap();
+        assert_eq!(owner, "testowner");
+        assert_eq!(repo, "testrepo");
+    }
+}
