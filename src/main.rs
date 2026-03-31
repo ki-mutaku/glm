@@ -142,7 +142,7 @@ async fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> Result
                                     }
                                 }
                                 Err(e) => {
-                                    app.set_error(format!("Failed to fetch repositories: {}", e));
+                                    app.set_error(format!("リポジトリの取得に失敗しました: {}", e));
                                 }
                             }
                         }
@@ -222,7 +222,7 @@ async fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> Result
                                             app.current_screen = Screen::IssueList;
                                         }
                                         Err(e) => {
-                                            app.set_error(format!("Failed to fetch issues: {}", e));
+                                            app.set_error(format!("Issueの取得に失敗しました: {}", e));
                                             app.current_screen = Screen::IssueList;
                                         }
                                     }
