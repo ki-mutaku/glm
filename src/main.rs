@@ -34,7 +34,11 @@ async fn main() -> Result<()> {
         .context("Octocrab クライアントの構築に失敗しました")?;
 
     // 3. 設定の読み込みと App の初期化
-    let config = config::load_config();
+    let config = config::load_config().unwrap_or_else(|e| {
+        eprintln!("警告: 設定ファイルの読み込みに失敗しました: {}", e);
+        eprintln!("デフォルト設定で起動します。");
+        config::AppConfig::default()
+    });
     let mut app = App::new(octocrab.clone(), vec![]); // まず空の Issue リストで初期化
 
     // 最後に開いたリポジトリがあれば、その Issue を取得
@@ -201,9 +205,12 @@ async fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> Result
                                     app.select_repository(repo.clone());
 
                                     // 設定を保存
-                                    config::save_config(&config::AppConfig {
+                                    if let Err(e) = config::save_config(&config::AppConfig {
                                         last_repository: Some(repo.clone()),
-                                    });
+                                    }) {
+                                        // 設定の保存に失敗してもアプリケーションは継続
+                                        eprintln!("警告: 設定の保存に失敗しました: {}", e);
+                                    }
 
                                     match gh::fetch_issues_for_repo(
                                         &app.octocrab,

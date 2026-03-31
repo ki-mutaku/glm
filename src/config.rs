@@ -1,3 +1,4 @@
+use anyhow::{Context, Result};
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -14,26 +15,49 @@ fn get_config_path() -> Option<PathBuf> {
     ProjectDirs::from("com", "glm", "glm").map(|dirs| dirs.config_dir().join("config.json"))
 }
 
-pub fn load_config() -> AppConfig {
-    if let Some(path) = get_config_path() {
-        if let Ok(content) = fs::read_to_string(&path) {
-            if let Ok(config) = serde_json::from_str(&content) {
-                return config;
-            }
+/// 設定ファイルを読み込む
+/// 
+/// ファイルが存在しない場合やパースに失敗した場合はデフォルト設定を返す
+pub fn load_config() -> Result<AppConfig> {
+    let path = match get_config_path() {
+        Some(p) => p,
+        None => {
+            // 設定ディレクトリが取得できない場合はデフォルトを返す（エラーではない）
+            return Ok(AppConfig::default());
         }
+    };
+
+    // ファイルが存在しない場合はデフォルトを返す（初回起動時など）
+    if !path.exists() {
+        return Ok(AppConfig::default());
     }
-    AppConfig::default()
+
+    let content = fs::read_to_string(&path)
+        .context("設定ファイルの読み込みに失敗しました")?;
+    
+    let config = serde_json::from_str(&content)
+        .context("設定ファイルのパースに失敗しました")?;
+
+    Ok(config)
 }
 
-pub fn save_config(config: &AppConfig) {
-    if let Some(path) = get_config_path() {
-        if let Some(dir) = path.parent() {
-            let _ = fs::create_dir_all(dir);
-        }
-        if let Ok(content) = serde_json::to_string_pretty(config) {
-            let _ = fs::write(path, content);
-        }
+/// 設定ファイルを保存する
+pub fn save_config(config: &AppConfig) -> Result<()> {
+    let path = get_config_path()
+        .context("設定ディレクトリのパスを取得できませんでした")?;
+
+    if let Some(dir) = path.parent() {
+        fs::create_dir_all(dir)
+            .context("設定ディレクトリの作成に失敗しました")?;
     }
+
+    let content = serde_json::to_string_pretty(config)
+        .context("設定のシリアライズに失敗しました")?;
+    
+    fs::write(&path, content)
+        .context("設定ファイルの書き込みに失敗しました")?;
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -115,11 +139,8 @@ mod tests {
     fn test_load_config_with_nonexistent_file() {
         // エッジケース: 存在しないファイルからの読み込み
         // load_config は存在しない場合はデフォルトを返す
-        // ただし、実環境では設定ファイルが既に存在する可能性があるため
-        // デフォルト設定または有効な設定が返されることを確認
-        let config = load_config();
-        // 関数が正常に動作し、AppConfig を返すことを確認
-        // (値の詳細は環境に依存するため、型のみをチェック)
+        let config = load_config().expect("設定の読み込みに失敗");
+        // ファイルが存在しない場合、または有効な設定が返されることを確認
         let _ = config.last_repository;
     }
 }
