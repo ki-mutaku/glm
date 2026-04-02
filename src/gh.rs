@@ -30,7 +30,8 @@ pub fn get_github_token() -> Result<String> {
 
 /// Issue の repository_url (https://api.github.com/repos/owner/repo) から owner と repo を抽出する
 pub fn parse_repo_owner(url: &str) -> Option<(String, String)> {
-    let parts: Vec<&str> = url.split('/').collect();
+    // 末尾のスラッシュによる空セグメントを除外
+    let parts: Vec<&str> = url.split('/').filter(|s| !s.is_empty()).collect();
     let len = parts.len();
     if len >= 2 {
         Some((parts[len - 2].to_string(), parts[len - 1].to_string()))
@@ -159,8 +160,8 @@ mod tests {
 
         assert!(result.is_some());
         let (owner, repo) = result.unwrap();
-        assert_eq!(owner, "Hello-World");
-        assert_eq!(repo, "");
+        assert_eq!(owner, "octocat");
+        assert_eq!(repo, "Hello-World");
     }
 
     #[test]
@@ -229,5 +230,17 @@ mod tests {
         let (owner, repo) = result.unwrap();
         assert_eq!(owner, "testowner");
         assert_eq!(repo, "testrepo");
+    }
+
+    #[test]
+    fn test_parse_repo_owner_multiple_trailing_slashes() {
+        // エッジケース: 複数の連続スラッシュがある場合
+        let url = "https://api.github.com/repos/octocat/Hello-World///";
+        let result = parse_repo_owner(url);
+
+        assert!(result.is_some());
+        let (owner, repo) = result.unwrap();
+        assert_eq!(owner, "octocat");
+        assert_eq!(repo, "Hello-World");
     }
 }

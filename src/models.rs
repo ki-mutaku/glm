@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 /// リポジトリ情報を保持する構造体
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Repository {
     /// リポジトリ名 (e.g., "glm")
     pub name: String,
@@ -12,7 +12,7 @@ pub struct Repository {
     /// リポジトリの説明
     pub description: Option<String>,
     /// スターの数
-    pub stars: i64,
+    pub stars: u32,
     /// プライベートリポジトリかどうか
     pub private: bool,
 }
@@ -25,7 +25,7 @@ impl From<octocrab::models::Repository> for Repository {
                 .owner
                 .map_or_else(|| "N/A".to_string(), |owner| owner.login),
             description: repo.description,
-            stars: repo.stargazers_count.unwrap_or(0) as i64,
+            stars: repo.stargazers_count.unwrap_or(0) as u32,
             private: repo.private.unwrap_or(false),
         }
     }
