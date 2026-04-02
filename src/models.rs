@@ -25,7 +25,7 @@ impl From<octocrab::models::Repository> for Repository {
                 .owner
                 .map_or_else(|| "N/A".to_string(), |owner| owner.login),
             description: repo.description,
-            stars: repo.stargazers_count.unwrap_or(0) as u32,
+            stars: repo.stargazers_count.unwrap_or(0),
             private: repo.private.unwrap_or(false),
         }
     }

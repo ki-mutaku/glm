@@ -229,7 +229,10 @@ async fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> Result
                                             app.current_screen = Screen::IssueList;
                                         }
                                         Err(e) => {
-                                            app.set_error(format!("Issueの取得に失敗しました: {}", e));
+                                            app.set_error(format!(
+                                                "Issueの取得に失敗しました: {}",
+                                                e
+                                            ));
                                             app.current_screen = Screen::IssueList;
                                         }
                                     }
