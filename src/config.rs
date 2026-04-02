@@ -12,7 +12,7 @@ pub struct AppConfig {
 }
 
 fn get_config_path() -> Option<PathBuf> {
-    ProjectDirs::from("com", "glm", "glm").map(|dirs| dirs.config_dir().join("config.json"))
+    ProjectDirs::from("com", "ghlm", "ghlm").map(|dirs| dirs.config_dir().join("config.json"))
 }
 
 /// 指定されたパスから設定ファイルを読み込む（テスト可能な内部実装）
@@ -22,17 +22,15 @@ fn load_config_from_path(path: &Path) -> Result<AppConfig> {
         return Ok(AppConfig::default());
     }
 
-    let content = fs::read_to_string(path)
-        .context("設定ファイルの読み込みに失敗しました")?;
-    
-    let config = serde_json::from_str(&content)
-        .context("設定ファイルのパースに失敗しました")?;
+    let content = fs::read_to_string(path).context("設定ファイルの読み込みに失敗しました")?;
+
+    let config = serde_json::from_str(&content).context("設定ファイルのパースに失敗しました")?;
 
     Ok(config)
 }
 
 /// 設定ファイルを読み込む
-/// 
+///
 /// ファイルが存在しない場合はデフォルト設定を返す
 pub fn load_config() -> Result<AppConfig> {
     let path = match get_config_path() {
@@ -49,23 +47,20 @@ pub fn load_config() -> Result<AppConfig> {
 /// 指定されたパスに設定ファイルを保存する（テスト可能な内部実装）
 fn save_config_to_path(config: &AppConfig, path: &Path) -> Result<()> {
     if let Some(dir) = path.parent() {
-        fs::create_dir_all(dir)
-            .context("設定ディレクトリの作成に失敗しました")?;
+        fs::create_dir_all(dir).context("設定ディレクトリの作成に失敗しました")?;
     }
 
-    let content = serde_json::to_string_pretty(config)
-        .context("設定のシリアライズに失敗しました")?;
-    
-    fs::write(path, content)
-        .context("設定ファイルの書き込みに失敗しました")?;
+    let content =
+        serde_json::to_string_pretty(config).context("設定のシリアライズに失敗しました")?;
+
+    fs::write(path, content).context("設定ファイルの書き込みに失敗しました")?;
 
     Ok(())
 }
 
 /// 設定ファイルを保存する
 pub fn save_config(config: &AppConfig) -> Result<()> {
-    let path = get_config_path()
-        .context("設定ディレクトリのパスを取得できませんでした")?;
+    let path = get_config_path().context("設定ディレクトリのパスを取得できませんでした")?;
 
     save_config_to_path(config, &path)
 }

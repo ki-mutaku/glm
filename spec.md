@@ -2,7 +2,7 @@
 
 ## 1. 概要
 
-`GLM (GitHub Life Manager)` は、GitHub の Issue を TUI (Terminal User Interface) で効率的に管理するための Rust 製ツールです。
+`GHLM (GitHub Life Manager)` は、GitHub の Issue を TUI (Terminal User Interface) で効率的に管理するための Rust 製ツールです。
 `ratatui` を使用した直感的な操作感と、詳細な編集が必要な場合に外部エディタ ($EDITOR) を起動するハイブリッドな設計を特徴としています。
 
 ## 2. 技術スタック
