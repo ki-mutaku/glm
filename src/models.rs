@@ -1,7 +1,5 @@
 //! データモデルを定義するモジュール
 
-use std::char::MAX;
-
 use serde::{Deserialize, Serialize};
 
 /// リポジトリ情報を保持する構造体
@@ -27,10 +25,7 @@ impl From<octocrab::models::Repository> for Repository {
                 .owner
                 .map_or_else(|| "N/A".to_string(), |owner| owner.login),
             description: repo.description,
-            stars: repo
-                .stargazers_count
-                .map(|n| n.try_into().unwrap_or(u32::MAX))
-                .unwrap_or(0),
+            stars: repo.stargazers_count.unwrap_or(0),
             private: repo.private.unwrap_or(false),
         }
     }
